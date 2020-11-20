@@ -14,6 +14,7 @@ export function getAvailableIndicators () {
   AvailableIndicators.push('roc');
   AvailableIndicators.push('kst');
   AvailableIndicators.push('psar');
+  AvailableIndicators.push('supertrend');
   AvailableIndicators.push('stochastic');
   AvailableIndicators.push('williamsr');
   AvailableIndicators.push('adl');
