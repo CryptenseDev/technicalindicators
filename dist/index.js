@@ -1488,6 +1488,82 @@ function psar(input) {
     return result;
 }
 
+class SuperTrend extends Indicator {
+    constructor(input) {
+        super(input);
+        let highs = input.high || [];
+        let lows = input.low || [];
+        let closes = input.close || [];
+        if (!((lows.length === highs.length) && (highs.length === closes.length))) {
+            throw ('Inputs(low[' + lows.length + '] ,high[' + highs.length + '], close[' + closes.length + ']) not of equal size');
+        }
+        var atrProducer = new ATR({ period: input.period, high: [], low: [], close: [], format: (v) => { return v; } });
+        this.result = [];
+        this.generator = (function* () {
+            var result;
+            var tick = yield;
+            var atr$$1;
+            var longStopPrev = null;
+            var shortStopPrev = null;
+            var lastClose = null;
+            var lastDir = null;
+            while (true) {
+                var { high, low, close } = tick;
+                if (lastClose != null) {
+                    atr$$1 = atrProducer.nextValue(tick);
+                    if (atr$$1 != undefined) {
+                        let longStop = (high + low) / 2.0 - atr$$1 * input.factor;
+                        let shortStop = (high + low) / 2.0 + atr$$1 * input.factor;
+                        longStopPrev = (longStopPrev != null) ? longStopPrev : longStop;
+                        shortStopPrev = (shortStopPrev != null) ? shortStopPrev : shortStop;
+                        longStop = lastClose > longStopPrev ? Math.max(longStop, longStopPrev) : longStop;
+                        shortStop = lastClose < shortStopPrev ? Math.min(shortStop, shortStopPrev) : shortStop;
+                        let dir = 1;
+                        dir = (lastDir != null) ? lastDir : dir;
+                        dir = ((dir == -1) && (close) > shortStopPrev) ? 1 :
+                            ((dir == 1) && (close) < longStopPrev) ? -1 : dir;
+                        result = (dir == 1) ? longStop : shortStop;
+                        longStopPrev = longStop;
+                        shortStopPrev = shortStop;
+                        lastDir = dir;
+                    }
+                }
+                lastClose = close;
+                tick = yield result;
+            }
+        })();
+        this.generator.next();
+        highs.forEach((tickHigh, index) => {
+            var tickInput = {
+                high: tickHigh,
+                low: lows[index],
+                close: closes[index],
+            };
+            var result = this.generator.next(tickInput);
+            if (result.value != undefined) {
+                this.result.push(result.value);
+            }
+        });
+    }
+    ;
+    nextValue(tickInput) {
+        let nextResult = this.generator.next(tickInput);
+        if (nextResult.value !== undefined)
+            return nextResult.value;
+    }
+    ;
+}
+SuperTrend.calculate = supertrend;
+function supertrend(tickInput) {
+    Indicator.reverseInputs(tickInput);
+    var result = new SuperTrend(tickInput).result;
+    if (tickInput.reversedInput) {
+        result.reverse();
+    }
+    Indicator.reverseInputs(tickInput);
+    return result;
+}
+
 class Stochastic extends Indicator {
     constructor(input) {
         super(input);
@@ -3779,10 +3855,12 @@ class BullishSpinningTop extends CandlestickFinder {
         let daysClose = data.close[0];
         let daysHigh = data.high[0];
         let daysLow = data.low[0];
+        let isBullishSpinningTop = daysClose > daysOpen;
         let bodyLength = Math.abs(daysClose - daysOpen);
         let upperShadowLength = Math.abs(daysHigh - daysClose);
         let lowerShadowLength = Math.abs(daysOpen - daysLow);
-        let isBullishSpinningTop = bodyLength < upperShadowLength &&
+        isBullishSpinningTop = isBullishSpinningTop &&
+            bodyLength < upperShadowLength &&
             bodyLength < lowerShadowLength;
         return isBullishSpinningTop;
     }
@@ -3802,10 +3880,12 @@ class BearishSpinningTop extends CandlestickFinder {
         let daysClose = data.close[0];
         let daysHigh = data.high[0];
         let daysLow = data.low[0];
+        let isBearishSpinningTop = daysClose < daysOpen;
         let bodyLength = Math.abs(daysClose - daysOpen);
         let upperShadowLength = Math.abs(daysHigh - daysOpen);
-        let lowerShadowLength = Math.abs(daysHigh - daysLow);
-        let isBearishSpinningTop = bodyLength < upperShadowLength &&
+        let lowerShadowLength = Math.abs(daysClose - daysLow);
+        isBearishSpinningTop = isBearishSpinningTop &&
+            bodyLength < upperShadowLength &&
             bodyLength < lowerShadowLength;
         return isBearishSpinningTop;
     }
@@ -4226,6 +4306,7 @@ function getAvailableIndicators () {
   AvailableIndicators.push('roc');
   AvailableIndicators.push('kst');
   AvailableIndicators.push('psar');
+  AvailableIndicators.push('supertrend');
   AvailableIndicators.push('stochastic');
   AvailableIndicators.push('williamsr');
   AvailableIndicators.push('adl');
@@ -4338,6 +4419,8 @@ exports.kst = kst;
 exports.KST = KST;
 exports.psar = psar;
 exports.PSAR = PSAR;
+exports.supertrend = supertrend;
+exports.SuperTrend = SuperTrend;
 exports.stochastic = stochastic;
 exports.Stochastic = Stochastic;
 exports.williamsr = williamsr;

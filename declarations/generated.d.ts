@@ -259,6 +259,22 @@ export class PSAR extends Indicator {
 }
 export function psar(input: PSARInput): number[];
 
+export class SuperTrendInput extends IndicatorInput {
+    factor: number;
+    period: number;
+    high: number[];
+    low: number[];
+    close: number[];
+}
+export class SuperTrend extends Indicator {
+    result: number[];
+    generator: IterableIterator<number | undefined>;
+    constructor(input: SuperTrendInput);
+    static calculate: typeof supertrend;
+    nextValue(tickInput: SuperTrendInput): number;
+}
+export function supertrend(tickInput: SuperTrendInput): number[];
+
 export class StochasticInput extends IndicatorInput {
     period: number;
     low: number[];
